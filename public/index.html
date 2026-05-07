@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>週次レポート送信アプリ</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f4f0; --surface: #fff; --surface2: #f8f7f4;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --text: #1a1a1a; --muted: #6b6b6b; --hint: #aaa;
+    --blue: #185FA5; --blue-dark: #0C447C; --blue-light: #E6F1FB; --blue-mid: #85B7EB;
+    --green: #3B6D11; --green-dark: #27500A; --green-light: #EAF3DE;
+    --red-bg: #FCEBEB; --red: #A32D2D;
+    --r: 10px; --rlg: 14px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header { background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 0 1.5rem; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--blue-light); display: flex; align-items: center; justify-content: center; }
+  .header-icon svg { width: 18px; height: 18px; stroke: var(--blue); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .header-title { font-size: 15px; font-weight: 600; }
+  .btn-sm { font-size: 13px; color: var(--muted); background: none; border: 0.5px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+  .btn-sm:hover { background: var(--surface2); }
+
+  main { max-width: 760px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  .page-title { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; }
+
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--rlg); padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+  .step-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.1rem; }
+  .step-badge { width: 24px; height: 24px; border-radius: 50%; background: var(--blue-light); border: 0.5px solid var(--blue-mid); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--blue); flex-shrink: 0; }
+  .step-label { font-size: 15px; font-weight: 600; }
+  .step-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.full { grid-column: 1 / -1; }
+  .field label { font-size: 13px; color: var(--muted); }
+  .field input { padding: 9px 11px; border: 0.5px solid var(--border); border-radius: var(--r); font-size: 14px; color: var(--text); background: var(--surface); outline: none; transition: border-color 0.15s; }
+  .field input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24,95,165,0.08); }
+  .field input::placeholder { color: var(--hint); }
+  .field-error { font-size: 12px; color: var(--red); margin-top: 2px; display: none; }
+  .field-error.show { display: block; }
+
+  .info-box { background: var(--surface2); border-radius: var(--r); padding: 10px 12px; margin-bottom: 12px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .info-box code { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 11.5px; background: var(--surface); border: 0.5px solid var(--border); border-radius: 4px; padding: 1px 5px; color: var(--text); }
+  .badge { font-size: 11px; padding: 2px 7px; border-radius: 6px; font-weight: 500; }
+  .badge-info { background: var(--blue-light); color: var(--blue-dark); }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+  .tab { font-size: 13px; padding: 6px 14px; border-radius: 8px; cursor: pointer; border: 0.5px solid var(--border); color: var(--muted); background: transparent; transition: background 0.12s; }
+  .tab:hover { background: var(--surface2); }
+  .tab.active { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  .preview-box { background: var(--surface2); border-radius: var(--r); padding: 1rem; font-size: 13px; line-height: 1.8; color: var(--text); border: 0.5px solid var(--border); min-height: 120px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; font-family: 'SFMono-Regular', Consolas, monospace; }
+
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  th { background: var(--surface2); padding: 7px 10px; text-align: left; border: 0.5px solid var(--border); color: var(--muted); font-weight: 500; }
+  td { padding: 7px 10px; border: 0.5px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tr:nth-child(even) td { background: var(--surface2); }
+
+  .action-row { display: flex; gap: 10px; margin-top: 1rem; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: var(--r); font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: background 0.15s, transform 0.1s; }
+  .btn:active:not(:disabled) { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-blue  { background: var(--blue);  color: #fff; }
+  .btn-blue:hover:not(:disabled)  { background: var(--blue-dark); }
+  .btn-green { background: var(--green); color: #fff; }
+  .btn-green:hover:not(:disabled) { background: var(--green-dark); }
+  .btn-outline { background: transparent; color: var(--muted); border: 0.5px solid var(--border); }
+  .btn-outline:hover { background: var(--surface2); }
+
+  .status { font-size: 13px; margin-top: 10px; padding: 9px 13px; border-radius: var(--r); display: none; }
+  .status.success { background: var(--green-light); color: var(--green); display: block; }
+  .status.error   { background: var(--red-bg);      color: var(--red);   display: block; }
+  .status.loading { background: var(--surface2);    color: var(--muted); display: block; }
+
+  .modal-backdrop { display: none; min-height: 240px; background: rgba(0,0,0,0.38); border-radius: var(--rlg); align-items: center; justify-content: center; margin-top: 1rem; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: var(--surface); border-radius: var(--rlg); border: 0.5px solid var(--border); padding: 1.5rem; width: 100%; max-width: 420px; }
+  .modal-icon { width: 42px; height: 42px; border-radius: 50%; background: var(--green-light); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+  .modal-icon svg { width: 20px; height: 20px; stroke: var(--green); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .modal-body  { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+  .modal-email { font-size: 14px; font-weight: 500; background: var(--surface2); border-radius: var(--r); padding: 9px 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; word-break: break-all; }
+  .modal-email svg { width: 16px; height: 16px; stroke: var(--blue); fill: none; stroke-width: 1.8; flex-shrink: 0; }
+  .modal-detail { font-size: 12px; color: var(--muted); background: var(--surface2); border-radius: var(--r); padding: 9px 12px; margin-bottom: 16px; line-height: 1.8; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+    </div>
+    <span class="header-title">週次レポート</span>
+  </div>
+  <button class="btn-sm" onclick="logout()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    ログアウト
+  </button>
+</header>
+
+<main>
+  <p class="page-title">週次レポート</p>
+  <p class="page-sub">スプレッドシートの出席データをGmailの下書きとして保存します</p>
+
+  <!-- Step 1 -->
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">1</div>
+      <div>
+        <div class="step-label">Google Sheets 設定</div>
+        <div class="step-sub">スプレッドシートのGAS Web App URLを入力してください</div>
+      </div>
+    </div>
+    <div class="info-box">
+      スプレッドシートのURLから ID をコピーしてください。<br>
+      例: <code>https://docs.google.com/spreadsheets/d/<strong>ここがID</strong>/edit</code>
+    </div>
+    <div class="field-row">
+      <div class="field full">
+        <label>Google Apps Script Web App URL <span class="badge badge-info">必須</span></label>
+        <input type="text" id="gasUrl" placeholder="https://script.google.com/macros/s/xxxxx/exec" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>シート名</label>
+        <input type="text" id="sheetName" value="フォームの回答 1" />
+      </div>
+      <div class="field">
+        <label>データ開始行</label>
+        <input type="number" id="startRow" value="2" min="1" max="10" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">2</div>
+      <div>
+        <div class="step-label">メール設定</div>
+        <div class="step-sub">下書きの宛先と件名を設定してください</div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field full">
+        <label>送信先メールアドレス</label>
+        <input type="email" id="toEmail" placeholder="recipient@example.com" oninput="clearEmailError()" />
+        <div class="field-error" id="emailError">有効なメールアドレスを入力してください</div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field full">
+        <label>メール件名</label>
+        <input type="text" id="subject" value="【週次レポート】出席者一覧" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">3</div>
+      <div>
+        <div class="step-label">レポート期間 &amp; プレビュー</div>
+        <div class="step-sub">対象週を選択してプレビューを確認</div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>対象期間（開始）</label>
+        <input type="date" id="dateFrom" />
+      </div>
+      <div class="field">
+        <label>対象期間（終了）</label>
+        <input type="date" id="dateTo" />
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('preview')">メールプレビュー</button>
+      <button class="tab" onclick="switchTab('table')">データテーブル</button>
+      <button class="tab" onclick="switchTab('gas')">GASコード</button>
+    </div>
+
+    <div id="tab-preview" class="tab-pane active">
+      <div class="preview-box" id="emailPreview">設定を入力するとプレビューが表示されます...</div>
+    </div>
+    <div id="tab-table" class="tab-pane">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:140px">タイムスタンプ</th>
+              <th style="width:110px">出席者名</th>
+              <th style="width:95px">受講日付</th>
+              <th style="width:80px">出席時刻</th>
+              <th style="width:80px">退出時刻</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="5" style="text-align:center;color:var(--hint)">データを取得後に表示されます</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="tab-gas" class="tab-pane">
+      <div class="info-box">
+        以下のコードを <strong>Google Apps Script</strong> にコピーして、ウェブアプリとしてデプロイしてください。<br>
+        実行権限: <strong>自分</strong> ／ アクセス権限: <strong>全員（匿名ユーザーを含む）</strong>
+      </div>
+      <div class="preview-box" id="gasCode" style="font-size:12px;line-height:1.65;"></div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-blue" onclick="generatePreview()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+        プレビュー更新
+      </button>
+      <button class="btn btn-green" id="draftBtn" onclick="openConfirm()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        下書き保存
+      </button>
+    </div>
+    <div class="status" id="statusMsg"></div>
+  </div>
+
+  <!-- 確認モーダル -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <div class="modal-icon">
+        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </div>
+      <div class="modal-title">下書き保存の確認</div>
+      <div class="modal-body">以下の内容でGmailの下書きに保存します。保存後はGmailの下書きフォルダから内容を確認して送信してください。</div>
+      <div class="modal-email">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span id="confirmEmail"></span>
+      </div>
+      <div class="modal-detail" id="confirmDetail"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeConfirm()">キャンセル</button>
+        <button class="btn btn-green" onclick="executeSaveDraft()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          下書きに保存する
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const SAMPLE = [
+  { timestamp:"2025/05/01 09:00:00", name:"田中 太郎", date:"2025/05/01", timeIn:"09:00", timeOut:"10:30" },
+  { timestamp:"2025/05/01 09:05:00", name:"鈴木 花子", date:"2025/05/01", timeIn:"09:05", timeOut:"10:30" },
+  { timestamp:"2025/05/02 13:00:00", name:"佐藤 次郎", date:"2025/05/02", timeIn:"13:00", timeOut:"14:45" },
+  { timestamp:"2025/05/03 10:00:00", name:"山田 美香", date:"2025/05/03", timeIn:"10:00", timeOut:"11:30" },
+];
+let currentData = SAMPLE;
+
+(function init() {
+  const today = new Date(), dow = today.getDay();
+  const mon = new Date(today); mon.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+  const sun = new Date(mon);   sun.setDate(mon.getDate() + 6);
+  const fmt = d => d.toISOString().split('T')[0];
+  document.getElementById('dateFrom').value = fmt(mon);
+  document.getElementById('dateTo').value   = fmt(sun);
+  generatePreview();
+})();
+
+function switchTab(name) {
+  ['preview','table','gas'].forEach((t, i) => {
+    document.querySelectorAll('.tab')[i].classList.toggle('active', t === name);
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+  });
+  if (name === 'gas') renderGasCode();
+}
+
+function getFiltered() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  if (!from) return currentData;
+  return currentData.filter(r => { const d = r.date.replace(/\//g,'-'); return d >= from && d <= to; });
+}
+
+function generatePreview() {
+  const subject  = document.getElementById('subject').value  || '【週次レポート】出席者一覧';
+  const toEmail  = document.getElementById('toEmail').value  || 'recipient@example.com';
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo   = document.getElementById('dateTo').value;
+  const data = getFiltered();
+  const rows = data.map((r,i) => `  ${i+1}. ${r.name}\n     受講日: ${r.date}　出席: ${r.timeIn}　退出: ${r.timeOut}`).join('\n\n');
+  document.getElementById('emailPreview').textContent =
+`To: ${toEmail}
+件名: ${subject}（${dateFrom} 〜 ${dateTo}）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+週次出席レポート
+対象期間: ${dateFrom} 〜 ${dateTo}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【出席者数】${data.length} 名
+
+【出席者一覧】
+${rows || '  （対象期間内のデータがありません）'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+このメールは自動作成されています。
+作成日時: ${new Date().toLocaleString('ja-JP')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+  updateTable(data);
+}
+
+function updateTable(data) {
+  document.getElementById('tableBody').innerHTML = data.length
+    ? data.map(r => `<tr><td>${r.timestamp}</td><td>${r.name}</td><td>${r.date}</td><td>${r.timeIn}</td><td>${r.timeOut}</td></tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--hint)">データがありません</td></tr>';
+}
+
+function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+function clearEmailError() { document.getElementById('emailError').classList.remove('show'); }
+
+function openConfirm() {
+  const toEmail  = document.getElementById('toEmail').value.trim();
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo   = document.getElementById('dateTo').value;
+  if (!toEmail || !isValidEmail(toEmail)) {
+    document.getElementById('emailError').classList.add('show');
+    document.getElementById('toEmail').focus();
+    return;
+  }
+  if (!dateFrom || !dateTo) { showStatus('error', '対象期間を選択してください'); return; }
+  const subject = document.getElementById('subject').value || '【週次レポート】出席者一覧';
+  const data    = getFiltered();
+  document.getElementById('confirmEmail').textContent = toEmail;
+  document.getElementById('confirmDetail').innerHTML  =
+    `件名: ${subject}（${dateFrom} 〜 ${dateTo}）<br>対象件数: ${data.length} 件<br>保存先: Gmailの下書きフォルダ`;
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+
+function closeConfirm() { document.getElementById('modalBackdrop').classList.remove('open'); }
+
+async function executeSaveDraft() {
+  closeConfirm();
+  const gasUrl   = document.getElementById('gasUrl').value.trim();
+  const toEmail  = document.getElementById('toEmail').value.trim();
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo   = document.getElementById('dateTo').value;
+  const subject  = (document.getElementById('subject').value || '【週次レポート】出席者一覧') + `（${dateFrom} 〜 ${dateTo}）`;
+
+  if (!gasUrl) {
+    showStatus('success', '【デモモード】GAS URLを設定すると実際に下書き保存されます。GASコードタブのコードをデプロイしてURLを入力してください。');
+    return;
+  }
+
+  showStatus('loading', '下書きを保存中...');
+  document.getElementById('draftBtn').disabled = true;
+
+  try {
+    const url = `${gasUrl}?action=saveDraft&to=${encodeURIComponent(toEmail)}&subject=${encodeURIComponent(subject)}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    if (data.status === 'ok') {
+      showStatus('success', '✓ Gmailの下書きに保存しました。Gmailの下書きフォルダを確認して送信してください。');
+    } else {
+      showStatus('error', 'エラー: ' + (data.error || '下書き保存に失敗しました'));
+    }
+  } catch {
+    showStatus('error', 'GAS URLへの接続に失敗しました。URLとデプロイ設定を確認してください。');
+  } finally {
+    document.getElementById('draftBtn').disabled = false;
+  }
+}
+
+function showStatus(type, msg) {
+  const el = document.getElementById('statusMsg');
+  el.className = 'status ' + type;
+  el.textContent = msg;
+}
+
+function renderGasCode() {
+  const sheetName = document.getElementById('sheetName').value || 'フォームの回答 1';
+  const toEmail   = document.getElementById('toEmail').value   || 'your@email.com';
+  const subject   = document.getElementById('subject').value   || '【週次レポート】出席者一覧';
+  document.getElementById('gasCode').textContent =
+`// Google Apps Script — データ取得 & Gmail下書き保存
+// デプロイ設定: 実行ユーザー「自分」/ アクセス「全員（匿名ユーザーを含む）」
+
+const SHEET_NAME = "${sheetName}";
+
+function doGet(e) {
+  const action = e.parameter.action;
+  if (action === "saveDraft") return saveDraft(e);
+  return ContentService.createTextOutput("OK");
+}
+
+function saveDraft(e) {
+  const to      = e.parameter.to      || "${toEmail}";
+  const subject = e.parameter.subject || "${subject}";
+  const from    = e.parameter.dateFrom || "";
+  const to_date = e.parameter.dateTo   || "";
+
+  // スプレッドシートからデータ取得
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const rows  = sheet.getDataRange().getValues();
+
+  const data = rows.slice(1).map(r => ({
+    name    : r[2] || "",
+    date    : r[3] ? Utilities.formatDate(new Date(r[3]), "Asia/Tokyo", "yyyy/MM/dd") : "",
+    timeIn  : r[4] || "",
+    timeOut : r[5] || ""
+  })).filter(r => r.name && (!from || (r.date >= from && r.date <= to_date)));
+
+  // メール本文を組み立て
+  const body = buildBody(data, from, to_date);
+
+  // Gmailの下書きとして保存
+  GmailApp.createDraft(to, subject, body);
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: "ok", saved: data.length }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function buildBody(data, from, to) {
+  const sep  = "━".repeat(32);
+  const rows = data.map((r, i) =>
+    "  " + (i + 1) + ". " + r.name +
+    "\\n     受講日: " + r.date + "　出席: " + r.timeIn + "　退出: " + r.timeOut
+  ).join("\\n\\n");
+
+  return sep + "\\n週次出席レポート\\n対象期間: " + from + " 〜 " + to + "\\n" + sep +
+    "\\n\\n【出席者数】" + data.length + " 名\\n\\n【出席者一覧】\\n" +
+    (rows || "  （対象期間内のデータがありません）") +
+    "\\n\\n" + sep + "\\nこのメールは自動作成されています。\\n作成日時: " +
+    Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy/MM/dd HH:mm:ss") +
+    "\\n" + sep;
+}`;
+}
+
+async function logout() {
+  await fetch('/api/logout', { method: 'POST' });
+  window.location.href = '/login';
+}
+</script>
+</body>
+</html>
