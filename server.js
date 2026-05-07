@@ -8,6 +8,8 @@ const PORT = process.env.PORT || 3000;
 const APP_PASSWORD   = process.env.APP_PASSWORD  || 'changeme';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret';
 
+app.set('trust proxy', 1); // Renderのリバースプロキシを信頼
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
@@ -15,7 +17,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: 'auto', // プロキシ経由のHTTPS接続を正しく判定
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 8
   }
