@@ -276,7 +276,7 @@ let currentData = SAMPLE;
   const fmt = d => d.toISOString().split('T')[0];
   document.getElementById('dateFrom').value = fmt(mon);
   document.getElementById('dateTo').value   = fmt(sun);
-  renderPreview();
+  generatePreview();
 })();
 
 function switchTab(name) {
@@ -294,32 +294,7 @@ function getFiltered() {
   return currentData.filter(r => { const d = r.date.replace(/\//g,'-'); return d >= from && d <= to; });
 }
 
-async function generatePreview() {
-  const gasUrl   = document.getElementById('gasUrl').value.trim();
-  const dateFrom = document.getElementById('dateFrom').value;
-  const dateTo   = document.getElementById('dateTo').value;
-
-  if (gasUrl) {
-    document.getElementById('emailPreview').textContent = 'スプレッドシートからデータを取得中...';
-    try {
-      const url = `/api/getData?gasUrl=${encodeURIComponent(gasUrl)}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
-      const res  = await fetch(url);
-      const json = await res.json();
-      if (json.status === 'ok' && Array.isArray(json.data)) {
-        currentData = json.data;
-        showStatus('success', `✓ ${json.data.length}件のデータを取得しました`);
-      } else {
-        showStatus('error', 'データの取得に失敗しました: ' + (json.error || '不明なエラー'));
-      }
-    } catch {
-      showStatus('error', 'GAS URLへの接続に失敗しました。URLとデプロイ設定を確認してください。');
-    }
-  }
-
-  renderPreview();
-}
-
-function renderPreview() {
+function generatePreview() {
   const subject  = document.getElementById('subject').value  || '【週次レポート】出席者一覧';
   const toEmail  = document.getElementById('toEmail').value  || 'recipient@example.com';
   const dateFrom = document.getElementById('dateFrom').value;
@@ -393,7 +368,7 @@ async function executeSaveDraft() {
   document.getElementById('draftBtn').disabled = true;
 
   try {
-    const url = `/api/saveDraft?gasUrl=${encodeURIComponent(gasUrl)}&to=${encodeURIComponent(toEmail)}&subject=${encodeURIComponent(subject)}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
+    const url = `${gasUrl}?action=saveDraft&to=${encodeURIComponent(toEmail)}&subject=${encodeURIComponent(subject)}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
     const res  = await fetch(url);
     const data = await res.json();
     if (data.status === 'ok') {
@@ -426,28 +401,8 @@ const SHEET_NAME = "${sheetName}";
 
 function doGet(e) {
   const action = e.parameter.action;
-  if (action === "getData")   return getData(e);
   if (action === "saveDraft") return saveDraft(e);
   return ContentService.createTextOutput("OK");
-}
-
-function getData(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-  const rows  = sheet.getDataRange().getValues();
-  const from  = e.parameter.dateFrom || "";
-  const to    = e.parameter.dateTo   || "";
-
-  const data = rows.slice(1).map(r => ({
-    timestamp : r[0] ? Utilities.formatDate(new Date(r[0]), "Asia/Tokyo", "yyyy/MM/dd HH:mm:ss") : "",
-    name      : r[2] || "",
-    date      : r[3] ? Utilities.formatDate(new Date(r[3]), "Asia/Tokyo", "yyyy/MM/dd") : "",
-    timeIn    : r[4] || "",
-    timeOut   : r[5] || ""
-  })).filter(r => r.name && (!from || (r.date >= from && r.date <= to)));
-
-  return ContentService
-    .createTextOutput(JSON.stringify({ status: "ok", data }))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function saveDraft(e) {

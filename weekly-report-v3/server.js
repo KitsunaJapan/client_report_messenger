@@ -8,8 +8,6 @@ const PORT = process.env.PORT || 3000;
 const APP_PASSWORD   = process.env.APP_PASSWORD  || 'changeme';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret';
 
-app.set('trust proxy', 1);
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
@@ -17,7 +15,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: 'auto',
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 8
   }
@@ -45,34 +43,6 @@ app.post('/api/login', (req, res) => {
 app.post('/api/logout', (req, res) => {
   req.session.destroy();
   res.json({ success: true });
-});
-
-// GASプロキシ：データ取得
-app.get('/api/getData', requireAuth, async (req, res) => {
-  const { gasUrl, dateFrom, dateTo } = req.query;
-  if (!gasUrl) return res.status(400).json({ error: 'gasUrl is required' });
-  try {
-    const url = `${gasUrl}?action=getData&dateFrom=${dateFrom}&dateTo=${dateTo}`;
-    const r = await fetch(url);
-    const json = await r.json();
-    res.json(json);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// GASプロキシ：下書き保存
-app.get('/api/saveDraft', requireAuth, async (req, res) => {
-  const { gasUrl, to, subject, dateFrom, dateTo } = req.query;
-  if (!gasUrl) return res.status(400).json({ error: 'gasUrl is required' });
-  try {
-    const url = `${gasUrl}?action=saveDraft&to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
-    const r = await fetch(url);
-    const json = await r.json();
-    res.json(json);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
 });
 
 app.use('/', requireAuth, express.static(path.join(__dirname, 'public')));
