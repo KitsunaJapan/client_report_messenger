@@ -443,7 +443,12 @@ function getData(e) {
     date      : r[3] ? Utilities.formatDate(new Date(r[3]), "Asia/Tokyo", "yyyy/MM/dd") : "",
     timeIn    : r[4] || "",
     timeOut   : r[5] || ""
-  })).filter(r => r.name && (!from || (r.date >= from && r.date <= to)));
+  })).filter(r => {
+    if (!r.name) return false;
+    if (!from) return true;
+    const d = r.date.replace(/\//g, '-');
+    return d >= from && d <= to;
+  });
 
   return ContentService
     .createTextOutput(JSON.stringify({ status: "ok", data }))
